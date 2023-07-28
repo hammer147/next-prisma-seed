@@ -1,34 +1,132 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Nextjs Prisma Seed
 
-## Getting Started
+A demo project to show how to seed a db with Nextjs, Prisma and MongoDB.
 
-First, run the development server:
+## install
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+npx create-next-app@latest
+npm i prisma ts-node -D
+npm i @prisma/client
+npx prisma init
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## db and environment variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- create a db in [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) and get the connection string
+- add .env to .gitignore
+- set DATABASE_URL in .env
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+```bash
+DATABASE_URL="mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/<db-name>?retryWrites=true&w=majority"
+```
 
-## Learn More
+## prisma schema
 
-To learn more about Next.js, take a look at the following resources:
+In /prisma/schema.prisma, change the schema according to your needs, e.g.:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```prisma
+generator client {
+  provider = "prisma-client-js"
+}
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
 
-## Deploy on Vercel
+model Movie {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  title String
+  releaseDate String
+  overview String
+  posterPath String
+}
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## generate prisma client
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+```bash
+npx prisma generate
+```
+
+## export prisma client
+
+In /src, create /lib/prisma.ts
+
+```ts
+import { PrismaClient } from '@prisma/client'
+
+declare global {
+  var prisma: PrismaClient | undefined
+}
+
+const prisma = global.prisma || new PrismaClient()
+
+if (process.env.NODE_ENV === 'development') global.prisma = prisma
+
+export default prisma
+```
+
+## seed data
+
+Create seed-data.ts in the prisma folder.  
+For local testing purposes, you could obtain an API key from [TMDB](https://www.themoviedb.org/).  
+Then use the following endpoint en copy the results in an array:
+`https://api.themoviedb.org/3/discover/movie?page=1&api_key=xxxx`
+
+```ts
+export const MOVIES = [{}, {}, {}]
+```
+
+Create seed.ts in the prisma folder.
+Notice that we will only use the title, overview, release_date and poster_path properties.
+
+```ts
+import { PrismaClient } from '@prisma/client'
+import { MOVIES } from './seed-data'
+
+const prisma = new PrismaClient()
+
+function seedMovies() {
+  Promise.all(
+    MOVIES.map(movie =>
+      prisma.movie.create({
+        data: {
+          title: movie.title,
+          overview: movie.overview,
+          releaseDate: movie.release_date,
+          posterPath: movie.poster_path
+        }
+      })
+    )
+  )
+    .then(() => console.log('Movies seeded successfully'))
+    .catch(error => console.error(error))
+}
+
+seedMovies()
+```
+
+## update package.json
+
+```json
+"prisma": "ts-node prisma/seed.ts"
+```
+
+## update tsconfig.json
+
+```json
+"ts-node": {
+  "compilerOptions": {
+    "module": "commonjs"
+  }
+}
+```
+
+## set up and seed db
+
+```bash
+npx prisma db push
+npx prisma db seed
+```

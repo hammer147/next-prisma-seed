@@ -130,3 +130,9 @@ seedMovies()
 npx prisma db push
 npx prisma db seed
 ```
+
+## This project is part of 3 related projects
+
+1. `next-prisma-seed`: we used prisma to seed a mongodb database with movies.
+2. `mongo-pagination-search`: we used this project to paginate and search movies from the mongodb database.
+3. `infinite-scrolling`: we removed pagination an implemented infinite scrolling with server actions.
